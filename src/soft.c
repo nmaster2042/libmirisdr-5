@@ -67,7 +67,7 @@ void update_reg_8(mirisdr_dev_t *p)
 
 int mirisdr_set_soft(mirisdr_dev_t *p)
 {
-    uint32_t reg0 = 0, reg2 = 2, reg5 = 5, reg3 = 3;
+    uint32_t reg0 = 0, reg2 = 2, reg5 = 5, reg3 = 3, regd = 0x0d;
     uint64_t n, thresh, frac, lo_div = 0, fvco = 0, rfvco = 0, offset = 0, afc = 0, a, b, c;
     int i;
 
@@ -223,6 +223,10 @@ int mirisdr_set_soft(mirisdr_dev_t *p)
     case MIRISDR_BW_8MHZ:
         reg0 |= 0x07 << 14;
         break;
+    case MIRISDR_BW_MAX:
+        reg0 |= 0x07 << 14;
+        regd |= (1<<4);
+        break;
     }
 
     /* xtal frekvence - nepodporujeme změnu */
@@ -330,6 +334,7 @@ int mirisdr_set_soft(mirisdr_dev_t *p)
     mirisdr_write_reg(p, 0x09, reg0);
     mirisdr_write_reg(p, 0x09, reg5);
     mirisdr_write_reg(p, 0x09, reg2);
+    mirisdr_write_reg(p, 0x09, regd);
 
 //    if (band_select[i] != 0)
 //    {
@@ -456,8 +461,10 @@ int mirisdr_set_bandwidth(mirisdr_dev_t *p, uint32_t bw)
     if (!p)
         return -1;
 
-    p->bandwidth = MIRISDR_BW_8MHZ;
+    p->bandwidth = MIRISDR_BW_MAX;
 
+    if(bw <= 8000000)
+        p->bandwidth = MIRISDR_BW_8MHZ;
     if(bw <= 7000000)
         p->bandwidth = MIRISDR_BW_7MHZ;
     if(bw <= 6000000)
@@ -513,6 +520,8 @@ uint32_t mirisdr_get_bandwidth(mirisdr_dev_t *p)
         return 7000000;
     case MIRISDR_BW_8MHZ:
         return 8000000;
+    case MIRISDR_BW_MAX:
+        return 14000000;
     }
 
     failed: return -1;

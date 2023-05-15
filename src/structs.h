@@ -57,7 +57,8 @@ struct mirisdr_dev {
         MIRISDR_BW_5MHZ,
         MIRISDR_BW_6MHZ,
         MIRISDR_BW_7MHZ,
-        MIRISDR_BW_8MHZ
+        MIRISDR_BW_8MHZ,
+        MIRISDR_BW_MAX
     } bandwidth;
     enum {
         MIRISDR_IF_ZERO = 0,
