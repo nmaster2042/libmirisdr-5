@@ -195,7 +195,7 @@ uint32_t mirisdr_get_sample_rate(mirisdr_dev_t *p)
 	return p->rate;
 }
 
-int mirisdr_set_sample_format(mirisdr_dev_t *p, char *v)
+int mirisdr_set_sample_format(mirisdr_dev_t *p, const char *v)
 {
 	if (!strcmp(v, "AUTO"))
 	{

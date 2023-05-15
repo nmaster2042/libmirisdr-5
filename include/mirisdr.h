@@ -82,7 +82,7 @@ MIRISDR_API int mirisdr_set_sample_rate (mirisdr_dev_t *p, uint32_t rate);
 MIRISDR_API uint32_t mirisdr_get_sample_rate (mirisdr_dev_t *p);
 
 /* sample format control */
-MIRISDR_API int mirisdr_set_sample_format (mirisdr_dev_t *p, char *v);  /* extra */
+MIRISDR_API int mirisdr_set_sample_format (mirisdr_dev_t *p, const char *v);  /* extra */
 MIRISDR_API const char *mirisdr_get_sample_format (mirisdr_dev_t *p);   /* extra */
 
 /* streaming control */
@@ -106,7 +106,7 @@ MIRISDR_API int mirisdr_set_freq_correction (mirisdr_dev_t *p, int ppm);
 MIRISDR_API int mirisdr_set_direct_sampling (mirisdr_dev_t *p, int on);
 
 /* transfer */
-MIRISDR_API int mirisdr_set_transfer (mirisdr_dev_t *p, char *v);       /* extra */
+MIRISDR_API int mirisdr_set_transfer (mirisdr_dev_t *p, const char *v);       /* extra */
 MIRISDR_API const char *mirisdr_get_transfer (mirisdr_dev_t *p);        /* extra */
 
 /* gain */

@@ -562,7 +562,7 @@ int mirisdr_set_offset_tuning(mirisdr_dev_t *p, int on)
     failed: return -1;
 }
 
-int mirisdr_set_transfer(mirisdr_dev_t *p, char *v)
+int mirisdr_set_transfer(mirisdr_dev_t *p, const char *v)
 {
     if (!p)
         goto failed;
