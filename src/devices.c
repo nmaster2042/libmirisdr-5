@@ -43,6 +43,11 @@ uint32_t mirisdr_get_device_count (void) {
     libusb_device **list;
     struct libusb_device_descriptor dd;
 
+#ifdef __ANDROID__
+    /* LibUSB does not support device discovery on android */
+    libusb_set_option(NULL, LIBUSB_OPTION_NO_DEVICE_DISCOVERY, NULL);
+#endif
+
     libusb_init(&ctx);
 
     i_max = libusb_get_device_list(ctx, &list);
@@ -68,6 +73,11 @@ const char *mirisdr_get_device_name (uint32_t index) {
     libusb_device **list;
     struct libusb_device_descriptor dd;
     mirisdr_device_t *device = NULL;
+
+#ifdef __ANDROID__
+    /* LibUSB does not support device discovery on android */
+    libusb_set_option(NULL, LIBUSB_OPTION_NO_DEVICE_DISCOVERY, NULL);
+#endif
 
     libusb_init(&ctx);
     i_max = libusb_get_device_list(ctx, &list);
@@ -97,6 +107,11 @@ int mirisdr_get_device_usb_strings (uint32_t index, char *manufact, char *produc
     libusb_device **list;
     struct libusb_device_descriptor dd;
     mirisdr_device_t *device = NULL;
+
+#ifdef __ANDROID__
+    /* LibUSB does not support device discovery on android */
+    libusb_set_option(NULL, LIBUSB_OPTION_NO_DEVICE_DISCOVERY, NULL);
+#endif
 
     libusb_init(&ctx);
     i_max = libusb_get_device_list(ctx, &list);

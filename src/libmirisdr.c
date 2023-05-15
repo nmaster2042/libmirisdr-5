@@ -70,6 +70,11 @@ int mirisdr_open (mirisdr_dev_t **p, uint32_t index) {
     /* ostatní parametry */
     dev->index = index;
 
+#ifdef __ANDROID__
+    /* LibUSB does not support device discovery on android */
+    libusb_set_option(NULL, LIBUSB_OPTION_NO_DEVICE_DISCOVERY, NULL);
+#endif
+
     libusb_init(&dev->ctx);
     i_max = libusb_get_device_list(dev->ctx, &list);
 
