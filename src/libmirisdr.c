@@ -53,56 +53,8 @@
 #include "soft.c"
 #include "sync.c"
 
-int mirisdr_open (mirisdr_dev_t **p, uint32_t index) {
-    mirisdr_dev_t *dev = NULL;
-    libusb_device **list, *device = NULL;
-    struct libusb_device_descriptor dd;
-    ssize_t i, i_max;
-    size_t count = 0;
+int mirisdr_setup (mirisdr_dev_t **out_dev, mirisdr_dev_t *dev) {
     int r;
-
-    *p = NULL;
-
-    if (!(dev = malloc(sizeof(*dev)))) return -ENOMEM;
-
-    memset(dev, 0, sizeof(*dev));
-
-    /* ostatní parametry */
-    dev->index = index;
-
-#ifdef __ANDROID__
-    /* LibUSB does not support device discovery on android */
-    libusb_set_option(NULL, LIBUSB_OPTION_NO_DEVICE_DISCOVERY, NULL);
-#endif
-
-    libusb_init(&dev->ctx);
-    i_max = libusb_get_device_list(dev->ctx, &list);
-
-    for (i = 0; i < i_max; i++) {
-        libusb_get_device_descriptor(list[i], &dd);
-
-        if ((mirisdr_device_get(dd.idVendor, dd.idProduct)) &&
-            (count++ == index)) {
-            device = list[i];
-            break;
-        }
-    }
-
-    /* nenašli jsme zařízení */
-    if (!device) {
-        libusb_free_device_list(list, 1);
-        fprintf( stderr, "no miri device %u found\n", dev->index);
-        goto failed;
-    }
-
-    /* otevření zařízení */
-    if ((r = libusb_open(device, &dev->dh)) < 0) {
-        libusb_free_device_list(list, 1);
-        fprintf( stderr, "failed to open miri usb device %u with code %d\n", dev->index, r);
-        goto failed;
-    }
-
-    libusb_free_device_list(list, 1);
 
     /* reset je potřeba, jinak občas zařízení odmítá komunikovat */
     mirisdr_reset(dev);
@@ -168,7 +120,7 @@ int mirisdr_open (mirisdr_dev_t **p, uint32_t index) {
     mirisdr_set_soft(dev);
     mirisdr_set_gain(dev);
 
-    *p = dev;
+    *out_dev = dev;
 
     return 0;
 
@@ -183,6 +135,106 @@ failed:
     }
 
     return -1;
+}
+
+int mirisdr_open (mirisdr_dev_t **p, uint32_t index) {
+    mirisdr_dev_t *dev = NULL;
+    libusb_device **list, *device = NULL;
+    struct libusb_device_descriptor dd;
+    ssize_t i, i_max;
+    size_t count = 0;
+    int r;
+
+    *p = NULL;
+
+    if (!(dev = malloc(sizeof(*dev)))) return -ENOMEM;
+
+    memset(dev, 0, sizeof(*dev));
+
+    /* ostatní parametry */
+    dev->index = index;
+
+#ifdef __ANDROID__
+    /* LibUSB does not support device discovery on android */
+    libusb_set_option(NULL, LIBUSB_OPTION_NO_DEVICE_DISCOVERY, NULL);
+#endif
+
+    libusb_init(&dev->ctx);
+    i_max = libusb_get_device_list(dev->ctx, &list);
+
+    for (i = 0; i < i_max; i++) {
+        libusb_get_device_descriptor(list[i], &dd);
+
+        if ((mirisdr_device_get(dd.idVendor, dd.idProduct)) &&
+            (count++ == index)) {
+            device = list[i];
+            break;
+        }
+    }
+
+    /* nenašli jsme zařízení */
+    if (!device) {
+        libusb_free_device_list(list, 1);
+        fprintf( stderr, "no miri device %u found\n", dev->index);
+        goto failed;
+    }
+
+    /* otevření zařízení */
+    if ((r = libusb_open(device, &dev->dh)) < 0) {
+        libusb_free_device_list(list, 1);
+        fprintf( stderr, "failed to open miri usb device %u with code %d\n", dev->index, r);
+        goto failed;
+    }
+
+    libusb_free_device_list(list, 1);
+
+    return mirisdr_setup(p, dev);
+
+failed:
+    if (dev) {
+        if (dev->dh) {
+            libusb_release_interface(dev->dh, 0);
+            libusb_close(dev->dh);
+        }
+        if (dev->ctx) libusb_exit(dev->ctx);
+        free(dev);
+    }
+
+    return -1;
+}
+
+int mirisdr_open_fd (mirisdr_dev_t **p, int fd) {
+    mirisdr_dev_t *dev = NULL;
+    libusb_device **list, *device = NULL;
+    struct libusb_device_descriptor dd;
+    ssize_t i, i_max;
+    size_t count = 0;
+    int r;
+
+    *p = NULL;
+
+    if (!(dev = malloc(sizeof(*dev)))) return -ENOMEM;
+
+    memset(dev, 0, sizeof(*dev));
+
+#ifdef __ANDROID__
+    /* LibUSB does not support device discovery on android */
+    libusb_set_option(NULL, LIBUSB_OPTION_NO_DEVICE_DISCOVERY, NULL);
+#endif
+
+    r = libusb_init(&dev->ctx);
+    if(r < 0){
+        free(dev);
+        return -1;
+    }
+    
+    r = libusb_wrap_sys_device(dev->ctx, (intptr_t)fd, &dev->dh);
+    if (r || dev->dh == NULL){
+        free(dev);
+        return -1;
+    }
+
+    return mirisdr_setup(p, dev);
 }
 
 int mirisdr_close (mirisdr_dev_t *p) {

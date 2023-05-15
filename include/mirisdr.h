@@ -57,6 +57,7 @@ MIRISDR_API int mirisdr_get_device_usb_strings (uint32_t index, char *manufact, 
 
 /* main */
 MIRISDR_API int mirisdr_open (mirisdr_dev_t **p, uint32_t index);
+MIRISDR_API int mirisdr_open_fd (mirisdr_dev_t **p, int fd);
 MIRISDR_API int mirisdr_close (mirisdr_dev_t *p);
 MIRISDR_API int mirisdr_reset (mirisdr_dev_t *p);                       /* extra */
 MIRISDR_API int mirisdr_reset_buffer (mirisdr_dev_t *p);
