@@ -67,20 +67,26 @@ void usage(void)
 		"\t    1620000: 1620kHz\n"
 		"\t    2048000: 2048kHz\n"
 		"\t[-w BW mode (default: 8MHz]\n"
-		"\t    200000:  200kHz\n"
-		"\t    300000:  300kHz\n"
-		"\t    600000:  600kHz\n"
-		"\t    1536000: 1536kHz\n"
-		"\t    5000000: 5MHz\n"
-		"\t    6000000: 6MHz\n"
-		"\t    7000000: 7MHz\n"
-		"\t    8000000: 8MHz\n"
+		"\t    200000: 200kHz\n"
+		"\t    300000: 300kHz\n"
+		"\t    600000: 600kHz\n"
+		"\t   1536000: 1536kHz\n"
+		"\t   5000000: 5MHz\n"
+		"\t   6000000: 6MHz\n"
+		"\t   7000000: 7MHz\n"
+		"\t   8000000: 8MHz\n"
+        "\t  14000000: 14MHz\n"
 		"\t[-s samplerate (default: 2048000 Hz)]\n"
 		"\t[-d device_index (default: 0)]\n"
 	    "\t[-T device_type device variant (default: 0)]\n"
         "\t    0:       Default\n"
         "\t    1:       SDRPlay\n"
-		"\t[-g gain (default: 0 for auto)]\n"
+		"\t[-g gain (0-102, default: 0 for auto)]\n"
+        "\t[-G individual gains separated by comma (mixer, lna, mixbuffer, baseband)]\n"
+        "\t    mixer: 0, 1\n"
+        "\t    LNA: 0, 1\n"
+        "\t    mixbuffer: 0, 6, 12, 18, 24\n"
+        "\t    baseband: 0 - 59\n"
 		"\t[-b output_block_size (default: 16 * 16384)]\n"
 		"\t[-S force sync output (default: async)]\n"
 		"\tfilename (a '-' dumps samples to stdout)\n\n");
@@ -128,7 +134,9 @@ int main(int argc, char **argv)
 	char *filename = NULL;
 	int n_read;
 	int r, opt;
-	int i, gain = 0;
+	int gain = 0;
+    int gain_mixer = 0, gain_lna = 0, gain_mb = 0, gain_bb = 0;
+    int gain_one = 1;
 	int sync_mode = 0;
 	FILE *file;
 	uint8_t *buffer;
@@ -144,16 +152,13 @@ int main(int argc, char **argv)
 	uint32_t frequency = 100000000;
 	uint32_t samp_rate = DEFAULT_SAMPLE_RATE;
 	uint32_t out_block_size = DEFAULT_BUF_LENGTH;
-	int device_count;
+    uint32_t device_count;
 	char vendor[256] = { 0 }, product[256] = { 0 }, serial[256] = { 0 };
-	int count;
-	int gains[100];
-	uint32_t rates[100];
 	mirisdr_hw_flavour_t hw_flavour = MIRISDR_HW_DEFAULT;
 	int intval;
 
 #if !defined (_WIN32) || defined(__MINGW32__)
-	while ((opt = getopt(argc, argv, "b:d:T:e:f:g:i:m:s:w:S::")) != -1) {
+	while ((opt = getopt(argc, argv, "b:d:T:e:f:g:G:i:m:s:w:S::")) != -1) {
 		switch (opt) {
 		case 'b':
 			out_block_size = (uint32_t)atof(optarg);
@@ -182,6 +187,30 @@ int main(int argc, char **argv)
 		case 'g':
 			gain = (int)(atof(optarg) * 10); /* tenths of a dB */
 			break;
+        case 'G':
+            // mixer lna mb bb
+            gain_one = 0;
+            char* part;
+            if (!(part = strtok(optarg, ","))) {
+                goto invalid;
+            }
+            gain_mixer = atoi(part);
+            if (!(part = strtok(NULL, ","))) {
+                goto invalid;
+            }
+            gain_lna = atoi(part);
+            if (!(part = strtok(NULL, ","))) {
+                goto invalid;
+            }
+            gain_mb = atoi(part);
+            if (!(part = strtok(NULL, ","))) {
+                goto invalid;
+            }
+            gain_bb = atoi(part);
+            break;
+            invalid:
+                fprintf(stderr, "-G needs 4 gains (mixer, lna, mb, bb)!\n");
+                exit(2);
 		case 'i':
 			if_mode = atoi(optarg);
 			break;
@@ -244,7 +273,7 @@ int main(int argc, char **argv)
 	}
 
 	fprintf(stderr, "Found %d device(s):\n", device_count);
-	for (i = 0; i < device_count; i++) {
+	for (uint32_t i = 0; i < device_count; i++) {
 		mirisdr_get_device_usb_strings(i, vendor, product, serial);
 		fprintf(stderr, "  %d:  %s, %s, SN: %s\n", i, vendor, product, serial);
 	}
@@ -272,13 +301,6 @@ int main(int argc, char **argv)
 #else
 	SetConsoleCtrlHandler( (PHANDLER_ROUTINE) sighandler, TRUE );
 #endif
-	count = mirisdr_get_tuner_gains(dev, NULL);
-	fprintf(stderr, "Supported gain values (%d): ", count);
-
-	count = mirisdr_get_tuner_gains(dev, gains);
-	for (i = 0; i < count; i++)
-		fprintf(stderr, "%.1f ", gains[i] / 10.0);
-	fprintf(stderr, "\n");
 
 	r = mirisdr_get_usb_strings(dev, vendor, product, serial);
 	if (r < 0)
@@ -337,7 +359,7 @@ int main(int argc, char **argv)
 	/* Set bandwidth */
 	mirisdr_set_bandwidth(dev, bw);
 
-	if (0 == gain) {
+	if (0 == gain && gain_one) {
 		 /* Enable automatic gain */
 		r = mirisdr_set_tuner_gain_mode(dev, 0);
 		if (r < 0)
@@ -348,12 +370,38 @@ int main(int argc, char **argv)
 		if (r < 0)
 			fprintf(stderr, "WARNING: Failed to enable manual gain.\n");
 
-		/* Set the tuner gain */
-		r = mirisdr_set_tuner_gain(dev, gain);
-		if (r < 0)
-			fprintf(stderr, "WARNING: Failed to set tuner gain.\n");
-		else
-			fprintf(stderr, "Tuner gain set to %f dB.\n", gain/10.0);
+        if (gain_one) {
+            r = mirisdr_set_tuner_gain(dev, gain);
+            if (r < 0)
+                fprintf(stderr, "WARNING: Failed to set tuner gain.\n");
+            else
+                fprintf(stderr, "Tuner gain set to %f dB.\n", gain/10.0);
+        } else {
+            // mixer lna mb bb
+            r = mirisdr_set_mixer_gain(dev, gain_mixer);
+            if (r < 0)
+                fprintf(stderr, "WARNING: Failed to set mixer gain.\n");
+            else
+                fprintf(stderr, "Mixer amplifier set to %s.\n", gain_mixer ? "ON" : "OFF");
+
+            r = mirisdr_set_lna_gain(dev, gain_lna);
+            if (r < 0)
+                fprintf(stderr, "WARNING: Failed to set LNA gain.\n");
+            else
+                fprintf(stderr, "LNA set to %s.\n", gain_mixer ? "ON" : "OFF");
+
+            r = mirisdr_set_mixbuffer_gain(dev, gain_mb);
+            if (r < 0)
+                fprintf(stderr, "WARNING: Failed to set mixbuffer gain.\n");
+            else
+                fprintf(stderr, "Mixbuffer gain set to %d dB.\n", gain_mb);
+
+            r = mirisdr_set_baseband_gain(dev, gain_bb);
+            if (r < 0)
+                fprintf(stderr, "WARNING: Failed to set baseband gain.\n");
+            else
+                fprintf(stderr, "Baseband gain set to %d dB.\n", gain_bb);
+        }
 	}
 
 	if(strcmp(filename, "-") == 0) { /* Write samples to stdout */
@@ -374,7 +422,7 @@ int main(int argc, char **argv)
 	if (sync_mode) {
 		fprintf(stderr, "Reading samples in sync mode...\n");
 		while (!do_exit) {
-			r = mirisdr_read_sync(dev, buffer, out_block_size, &n_read);
+			r = mirisdr_read_sync(dev, buffer, (int) out_block_size, &n_read);
 			if (r < 0) {
 				fprintf(stderr, "WARNING: sync read failed.\n");
 				break;
