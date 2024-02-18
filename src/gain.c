@@ -229,6 +229,15 @@ int mirisdr_set_mixer_gain(mirisdr_dev_t *p, int gain)
 
 int mirisdr_set_mixbuffer_gain(mirisdr_dev_t *p, int gain)
 {
+    if (gain < 0) {
+        fprintf(stderr, "ERROR: mirisdr_set_mixbuffer_gain: negative number provided: %d\n", gain);
+        return -1;
+    }
+
+    if (gain > 18) {
+        gain = 18; // clamp
+    }
+
     p->gain_reduction_mixbuffer = (3 - gain / 6) & 0x03;
 
     return mirisdr_set_gain(p);
@@ -255,18 +264,8 @@ int mirisdr_get_mixer_gain(mirisdr_dev_t *p)
 
 int mirisdr_get_mixbuffer_gain(mirisdr_dev_t *p)
 {
-    if (p->band == MIRISDR_BAND_AM1)
-    {
-        return 18 - 6*p->gain_reduction_mixbuffer;
-    }
-    else if (p->band == MIRISDR_BAND_AM2)
-    {
-        return p->gain_reduction_mixbuffer == 0 ? 24 : 0;
-    }
-    else
-    {
-        return 0;
-    }
+    // report mixbuffer gain even if it's not really used (or is 24 dB) on other bands to not confuse clients
+    return 18 - 6*p->gain_reduction_mixbuffer;
 }
 
 int mirisdr_get_lna_gain(mirisdr_dev_t *p)
