@@ -368,6 +368,8 @@ static int mirisdr_async_free (mirisdr_dev_t *p) {
 int mirisdr_read_async (mirisdr_dev_t *p, mirisdr_read_async_cb_t cb, void *ctx, uint32_t num, uint32_t len) {
     size_t i;
     int r, semafor;
+    int transfer_failed = 0;
+    int cancel_tries = 0;
     struct timeval tv = {1, 0};
 
     if (!p) goto failed;
@@ -476,6 +478,19 @@ int mirisdr_read_async (mirisdr_dev_t *p, mirisdr_read_async_cb_t cb, void *ctx,
                 break;
             }
 
+            /* A stalled endpoint may never return its transfers, so do not wait
+             * for them for ever -- that hangs the caller's stream thread. Give
+             * up after a few seconds and leave without freeing: the transfers
+             * are still owned by libusb, and freeing an in-flight transfer
+             * corrupts memory. libusb_close()/libusb_exit() in mirisdr_close()
+             * cleans up from here. */
+            if (++cancel_tries > 5) {
+                fprintf(stderr, "libmirisdr: transfers would not cancel, "
+                                "abandoning them\n");
+                p->async_status = MIRISDR_ASYNC_INACTIVE;
+                return -1;
+            }
+
             /* ukončíme všechny přenosy */
             semafor = 1;
             for (i = 0; i < p->xfer_buf_num; i++) {
@@ -496,7 +511,14 @@ int mirisdr_read_async (mirisdr_dev_t *p, mirisdr_read_async_cb_t cb, void *ctx,
                 break;
             }
         } else if (p->async_status == MIRISDR_ASYNC_FAILED) {
-            goto failed_free;
+            /* Do NOT free the transfers here: on this path some of them are
+             * still submitted, and libusb_free_transfer() on an in-flight
+             * transfer corrupts memory (it crashed the host process every time
+             * a bulk endpoint stalled). Convert the failure into a normal
+             * cancel so the branch above drains every transfer properly, and
+             * remember that it failed so we still return an error. */
+            transfer_failed = 1;
+            p->async_status = MIRISDR_ASYNC_CANCELING;
         }
     }
 
@@ -511,6 +533,11 @@ int mirisdr_read_async (mirisdr_dev_t *p, mirisdr_read_async_cb_t cb, void *ctx,
 #endif
     mirisdr_streaming_stop(p);
     /* je vhodné ukončit i adc, jenže pak by při dalším otevření bylo nutné provést inicializaci */
+
+    if (transfer_failed) {
+        p->async_status = MIRISDR_ASYNC_INACTIVE;
+        return -1;
+    }
 
     return 0;
 

@@ -20,7 +20,7 @@
 ########################################################################
 # Project setup
 ########################################################################
-cmake_minimum_required(VERSION 2.6)
+cmake_minimum_required(VERSION 3.12)
 project(mirisdr C)
 
 # use, i.e. don't skip the full RPATH for the build tree
@@ -46,7 +46,7 @@ set(CMAKE_BUILD_TYPE ${CMAKE_BUILD_TYPE} CACHE STRING "")
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake/Modules)
 
 # Set the version information here
-set(VERSION_INFO_MAJOR_VERSION 4) # increment major on api compatibility changes
+set(VERSION_INFO_MAJOR_VERSION 5) # increment major on api compatibility changes
 set(VERSION_INFO_MINOR_VERSION 0) # increment minor on feature-level changes
 set(VERSION_INFO_PATCH_VERSION git) # increment patch for bug fixes and docs
 include(Version) # setup version info

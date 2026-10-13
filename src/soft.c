@@ -350,11 +350,59 @@ int mirisdr_set_soft(mirisdr_dev_t *p)
 //    }
 
 #if MIRISDR_DEBUG >= 1
-    fprintf( stderr,"sel:%d %x ",i,switch_plan.band_select_word);
-    fprintf( stderr,"freq: %.2f MHz (offset: %.2f MHz), n: %lu, fraction: %lu/%lu\n",
+    fprintf( stderr,"mirisdr sel:%d %x ",i,switch_plan.band_select_word);
+    fprintf( stderr,"freq: %.3f MHz (offset: %.3f MHz), n: %lu, fraction: %lu/%lu\n",
             ((double) n + (double) frac / (double) thresh) * 96.0 / (double) lo_div,
             (double) offset / 1.0e6, (long unsigned)n,
             (long unsigned)frac, (long unsigned)thresh);
+    char* if_str = "undefined";
+    switch (p->if_freq)
+    {
+    case MIRISDR_IF_ZERO:
+        if_str = "0 Hz";
+        break;
+    case MIRISDR_IF_450KHZ:
+        if_str = "450 kHz";
+        break;
+    case MIRISDR_IF_1620KHZ:
+        if_str = "1620 kHz";
+        break;
+    case MIRISDR_IF_2048KHZ:
+        if_str = "2048 kHz";
+        break;
+    }
+    char* bw_str = "undefined";
+    switch (p->bandwidth)
+    {
+    case MIRISDR_BW_200KHZ:
+        bw_str = "200 kHz";
+        break;
+    case MIRISDR_BW_300KHZ:
+        bw_str = "300 kHz";
+        break;
+    case MIRISDR_BW_600KHZ:
+        bw_str = "600 kHz";
+        break;
+    case MIRISDR_BW_1536KHZ:
+        bw_str = "1536 kHz";
+        break;
+    case MIRISDR_BW_5MHZ:
+        bw_str = "5 MHz";
+        break;
+    case MIRISDR_BW_6MHZ:
+        bw_str = "6 MHz";
+        break;
+    case MIRISDR_BW_7MHZ:
+        bw_str = "7 MHz";
+        break;
+    case MIRISDR_BW_8MHZ:
+        bw_str = "8 MHz";
+        break;
+    case MIRISDR_BW_MAX:
+        bw_str = "maximal";
+        break;
+    }
+    fprintf(stderr, "mirisdr IF: %s, BW: %s\n", if_str, bw_str);
 #endif
 
     return 0;
@@ -375,6 +423,9 @@ uint32_t mirisdr_get_center_freq(mirisdr_dev_t *p)
 
 int mirisdr_set_if_freq(mirisdr_dev_t *p, uint32_t freq)
 {
+#if MIRISDR_DEBUG >= 1
+    fprintf(stderr, "mirisdr_set_if_freq: %u Hz\n", freq);
+#endif
     if (!p)
         goto failed;
 
@@ -458,6 +509,9 @@ uint32_t mirisdr_get_xtal_freq(mirisdr_dev_t *p)
 
 int mirisdr_set_bandwidth(mirisdr_dev_t *p, uint32_t bw)
 {
+#if MIRISDR_DEBUG >= 1
+    fprintf(stderr, "mirisdr_set_bandwidth: %u Hz\n", bw);
+#endif
     if (!p)
         return -1;
 
@@ -545,6 +599,9 @@ int mirisdr_set_direct_sampling(mirisdr_dev_t *p, int on)
 
 int mirisdr_set_offset_tuning(mirisdr_dev_t *p, int on)
 {
+#if MIRISDR_DEBUG >= 1
+    fprintf(stderr, "mirisdr_set_offset_tuning: %d\n", on);
+#endif
     if (!p)
         goto failed;
 

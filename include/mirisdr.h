@@ -26,7 +26,8 @@ extern "C" {
 // Set debug level
 // 0=no debug
 // 1=gain and frequency info.
-// 2=extended debug
+// 2=extended debug (register writes)
+// 3=more extended debug (function calls)
 #define MIRISDR_DEBUG 0
 
 #include <stdint.h>
@@ -127,6 +128,18 @@ MIRISDR_API int mirisdr_get_lna_gain (mirisdr_dev_t *p);                /* extra
 MIRISDR_API int mirisdr_get_baseband_gain (mirisdr_dev_t *p);           /* extra */
 MIRISDR_API int mirisdr_set_bias (mirisdr_dev_t *p, int bias);          /* extra */
 MIRISDR_API int mirisdr_get_bias (mirisdr_dev_t *p);                    /* extra */
+
+/*
+ * DC Calibration
+ *
+ * Only raw interface for testing purposes. No sanity checks done.
+ * raw format with bit length in parenthesis:
+ *   [ unused (4) | period (12) | unused (6) | track (6) | speedup (1) | mode (3) ]
+ * The default dc setting is:
+ *   0x080001f2 (period = 0x800, track = 0x1f, speedup = 0, mode = 2)
+ */
+MIRISDR_API int mirisdr_set_dc_raw (mirisdr_dev_t *p, uint32_t raw);
+MIRISDR_API uint32_t mirisdr_get_dc_raw (mirisdr_dev_t *p);
 
 #ifdef __cplusplus
 }

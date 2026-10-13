@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2013 by Miroslav Slugen <thunder.m@email.cz
+ * Copyright (C) 2025 by Peter Hackenberg <170885528+Peter3579@users.noreply.github.com>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -102,5 +103,18 @@ struct mirisdr_dev {
     uint8_t             *samples;
     int                 samples_size;
     int                 sync_loss_cnt;
+
+    /* dc offset calibration */
+    enum {
+        MIRISDR_DC_STATIC = 0,
+        MIRISDR_DC_PERIODIC1,
+        MIRISDR_DC_PERIODIC2,
+        MIRISDR_DC_PERIODIC3,
+        MIRISDR_DC_ONE_SHOT,
+        MIRISDR_DC_CONTINUOUS
+    } dc_mode;
+    int                 dc_speedup;
+    int                 dc_track;   // tracking duration
+    int                 dc_period;  // refresh period
 };
 

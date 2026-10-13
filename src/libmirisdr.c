@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2013 by Miroslav Slugen <thunder.m@email.cz
+ * Copyright (C) 2025 by Peter Hackenberg <170885528+Peter3579@users.noreply.github.com>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -56,13 +57,6 @@
 int mirisdr_setup (mirisdr_dev_t **out_dev, mirisdr_dev_t *dev) {
     int r;
 
-    /* reset je potřeba, jinak občas zařízení odmítá komunikovat */
-    mirisdr_reset(dev);
-
-    /* ještě je třeba vždy ukončit i streamování, které může být při otevření aktivní */
-    mirisdr_streaming_stop(dev);
-    mirisdr_adc_stop(dev);
-
     if (libusb_kernel_driver_active(dev->dh, 0) == 1) {
         dev->driver_active = 1;
 
@@ -87,9 +81,20 @@ int mirisdr_setup (mirisdr_dev_t **out_dev, mirisdr_dev_t *dev) {
     }
 
     if ((r = libusb_claim_interface(dev->dh, 0)) < 0) {
-        fprintf( stderr, "failed to claim miri usb device %u with code %d\n", dev->index, r);
+        fprintf(stderr, "failed to claim miri usb device %u with code %d: %s\n", dev->index, r, libusb_error_name(r));
+        if (r == LIBUSB_ERROR_BUSY) {
+            fprintf(stderr, "Verify that the SDRplay background service is not running by `sudo systemctl stop sdrplay` and try again.\n");
+        }
+
         goto failed;
     }
+
+    /* reset je potřeba, jinak občas zařízení odmítá komunikovat */
+    mirisdr_reset(dev);
+
+    /* ještě je třeba vždy ukončit i streamování, které může být při otevření aktivní */
+    mirisdr_streaming_stop(dev);
+    mirisdr_adc_stop(dev);
 
     /* inicializace tuneru */
     dev->freq = DEFAULT_FREQ;
@@ -105,6 +110,10 @@ int mirisdr_setup (mirisdr_dev_t **out_dev, mirisdr_dev_t *dev) {
     dev->bandwidth = MIRISDR_BW_8MHZ;
     dev->xtal = MIRISDR_XTAL_24M;
     dev->bias = 0;
+    dev->dc_mode = MIRISDR_DC_PERIODIC2;
+    dev->dc_speedup = 0;
+    dev->dc_track = 0x1f;
+    dev->dc_period = 0x800;
 
     dev->hw_flavour = MIRISDR_HW_DEFAULT;
 
@@ -193,7 +202,6 @@ int mirisdr_open (mirisdr_dev_t **p, uint32_t index) {
 failed:
     if (dev) {
         if (dev->dh) {
-            libusb_release_interface(dev->dh, 0);
             libusb_close(dev->dh);
         }
         if (dev->ctx) libusb_exit(dev->ctx);
@@ -263,9 +271,12 @@ int mirisdr_close (mirisdr_dev_t *p) {
                 fprintf(stderr, "Reattaching kernel driver failed!\n");
         }
 #endif
-        if (p->async_status != MIRISDR_ASYNC_FAILED) {
-            libusb_close(p->dh);
-        }
+        /* Always close the handle. Skipping libusb_close() when the async side
+         * had failed leaks the device handle, so the receiver stays claimed and
+         * every later open fails with a stalled endpoint (transfer status 4)
+         * until it is physically replugged -- i.e. exactly the case where
+         * cleaning up matters most. */
+        libusb_close(p->dh);
     }
 
     if (p->ctx) libusb_exit(p->ctx);
